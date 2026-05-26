@@ -89,7 +89,10 @@ body {
 .doc-header__filename {
   font-size: 13px; font-weight: 600; color: var(--color-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; border-radius: 4px; padding: 2px 4px; margin: -2px -4px;
+  transition: background 0.1s, color 0.1s;
 }
+.doc-header__filename:hover { background: var(--color-gray-5); color: var(--color-primary); }
 
 .owner-badge {
   height: 20px; padding: 0 7px;
@@ -1118,6 +1121,78 @@ body {
   box-shadow: 0 2px 8px rgba(90,82,250,0.22);
 }
 
+/* ── Slides view ─────────────────────────────────────── */
+.slides-main { background: #1e1e22 !important; }
+.slides-content {
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+  padding: 0 40px;
+}
+.slide-card {
+  width: 680px; min-height: 382px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.2);
+  padding: 48px 56px 52px;
+  position: relative; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  scroll-margin-top: 32px;
+}
+.slide-card--cover {
+  background: linear-gradient(135deg, #1a1560 0%, #3730c4 100%);
+  color: #fff;
+}
+.slide-card__num {
+  position: absolute; bottom: 14px; right: 18px;
+  font-size: 11px; color: var(--color-gray-30); font-weight: 500;
+}
+.slide-card--cover .slide-card__num { color: rgba(255,255,255,0.4); }
+.slide-card__heading {
+  font-size: 24px; font-weight: 700; color: var(--color-text);
+  margin-bottom: 18px; line-height: 1.25;
+}
+.slide-card--cover .slide-card__heading { color: #fff; font-size: 30px; }
+.slide-card__body {
+  font-size: 14px; line-height: 1.7; color: var(--color-text-secondary);
+  flex: 1;
+}
+.slide-card--cover .slide-card__body { color: rgba(255,255,255,0.75); }
+.slide-card__divider-label {
+  font-size: 28px; font-weight: 700; color: var(--color-text); text-align: center;
+  flex: 1; display: flex; align-items: center; justify-content: center;
+}
+/* Slide thumbnails in outline */
+.slides-outline { width: 180px !important; }
+.slide-thumb-list { padding: 6px 8px !important; display: flex; flex-direction: column; gap: 8px; }
+.slide-thumb-item {
+  cursor: pointer; border-radius: 5px; padding: 5px;
+  transition: background 0.1s;
+}
+.slide-thumb-item:hover { background: var(--color-gray-0); }
+.slide-thumb-item.selected .slide-thumb-card { border-color: var(--color-primary); box-shadow: 0 0 0 1.5px var(--color-primary); }
+.slide-thumb-card {
+  width: 100%; aspect-ratio: 16/9;
+  background: #fff; border: 1px solid var(--color-gray-10);
+  border-radius: 3px; padding: 7px 8px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.1s;
+}
+.slide-thumb-card--cover { background: linear-gradient(135deg, #1a1560 0%, #3730c4 100%); }
+.slide-thumb-heading {
+  font-size: 7.5px; font-weight: 700; color: var(--color-text);
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+.slide-thumb-card--cover .slide-thumb-heading { color: #fff; }
+.slide-thumb-num {
+  position: absolute; bottom: 3px; right: 4px;
+  font-size: 7px; color: var(--color-gray-30);
+}
+.slide-thumb-card--cover .slide-thumb-num { color: rgba(255,255,255,0.4); }
+.slide-thumb-label {
+  font-size: 10.5px; color: var(--color-text-secondary); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px;
+}
+
 /* ── Share modal ─────────────────────────────────────── */
 .share-overlay {
   display: none; position: fixed; inset: 0; z-index: 10000;
@@ -1499,6 +1574,7 @@ const state = {
   versionDropdownOpen: false,
   versionPreview: null, // { num, id, description }
   pendingConfirmation: null, // { msgId, targetId, editFn, response }
+  fileType: 'document', // 'document' | 'slide'
   versionsShown: 10,
   versions: [
     { id: 'ver-1', num: 1, description: 'Generated', time: new Date('2025-12-23T13:15:00') },
@@ -1989,7 +2065,7 @@ function buildHeader() {
     <!-- Left: file icon + filename + badge + version -->
     <div class="doc-header__left">
       <span class="doc-header__file-icon">${ICON.fileDoc}</span>
-      <span class="doc-header__filename">instabase-company-overview.document</span>
+      <span class="doc-header__filename" id="doc-filename" title="Click to switch view" style="cursor:pointer;">instabase-company-overview.${state.fileType}</span>
       <span class="owner-badge">OWNER</span>
       ${buildVersionBtn()}
     </div>
@@ -2031,14 +2107,12 @@ function buildHeader() {
 }
 
 function buildOutline() {
+  if (state.fileType === 'slide') return buildSlideOutline();
+
   const items = state.sections.map(s => {
     const isChild = s.level === 1;
     const isSelected = state.selectedId === s.id;
-    const cls = [
-      'outline-item',
-      isChild ? 'outline-item--child' : '',
-      isSelected ? 'selected' : '',
-    ].filter(Boolean).join(' ');
+    const cls = ['outline-item', isChild ? 'outline-item--child' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
     return `<div class="${cls}" data-id="${s.id}">${s.label}</div>`;
   }).join('');
 
@@ -2047,22 +2121,72 @@ function buildOutline() {
       <span class="outline-header__label">Sections</span>
       <button class="icon-btn" id="outline-close-btn">${ICON.close}</button>
     </div>
-    <div class="outline-list">
-      ${items}
-    </div>
+    <div class="outline-list">${items}</div>
   </aside>`;
 }
 
+function buildSlideOutline() {
+  const items = state.sections.map((s, idx) => {
+    const num = idx + 1;
+    const isCover = idx === 0;
+    const isSelected = state.selectedId === s.id;
+    const heading = s.heading || s.label || '';
+    return `<div class="slide-thumb-item${isSelected ? ' selected' : ''}" data-id="${s.id}">
+      <div class="slide-thumb-card${isCover ? ' slide-thumb-card--cover' : ''}">
+        <div class="slide-thumb-heading">${heading}</div>
+        <div class="slide-thumb-num">${num}</div>
+      </div>
+      <div class="slide-thumb-label">${s.label}</div>
+    </div>`;
+  }).join('');
+
+  return `<aside class="doc-outline slides-outline">
+    <div class="outline-header">
+      <span class="outline-header__label">Slides</span>
+      <button class="icon-btn" id="outline-close-btn">${ICON.close}</button>
+    </div>
+    <div class="outline-list slide-thumb-list">${items}</div>
+  </aside>`;
+}
+
+const chatToggleSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+
 function buildDocument() {
+  if (state.fileType === 'slide') return buildSlidesMain();
+
   const sections = state.sections.map((s, idx) => buildSectionHTML(s, idx)).join('');
   return `<main class="doc-main" id="doc-main" style="position:relative;">
     <button class="outline-toggle-btn" id="outline-toggle-btn" title="Show sections">${ICON.menu}</button>
-    <button class="chat-toggle-btn" id="chat-toggle-btn" title="Open chat">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-    </button>
+    <button class="chat-toggle-btn" id="chat-toggle-btn" title="Open chat">${chatToggleSVG}</button>
     <div class="doc-content">${sections}</div>
+  </main>`;
+}
+
+function buildSlidesMain() {
+  const slides = state.sections.map((s, idx) => {
+    const num = idx + 1;
+    const isCover = idx === 0;
+    const isDivider = s.type === 'parent';
+    const heading = s.heading || s.label || '';
+    const body = s.body || '';
+
+    if (isDivider) {
+      return `<div class="slide-card" id="slide-${s.id}" data-slide="${s.id}">
+        <div class="slide-card__divider-label">${heading || s.label}</div>
+        <div class="slide-card__num">${num}</div>
+      </div>`;
+    }
+    return `<div class="slide-card${isCover ? ' slide-card--cover' : ''}" id="slide-${s.id}" data-slide="${s.id}">
+      <div class="slide-card__heading">${heading}</div>
+      <div class="slide-card__body">${body}</div>
+      <div class="slide-card__num">${num}</div>
+    </div>`;
+  }).join('');
+
+  return `<main class="doc-main slides-main" id="doc-main" style="position:relative;">
+    <button class="outline-toggle-btn" id="outline-toggle-btn" title="Show slides">${ICON.menu}</button>
+    <button class="chat-toggle-btn" id="chat-toggle-btn" title="Open chat">${chatToggleSVG}</button>
+    <div class="slides-content">${slides}</div>
   </main>`;
 }
 
@@ -3269,6 +3393,51 @@ function attachListeners() {
   });
 
   // Outline: collapse / expand
+  // Filename click → toggle document / slide view
+  document.getElementById('doc-filename')?.addEventListener('click', () => {
+    state.fileType = state.fileType === 'document' ? 'slide' : 'document';
+    // Update filename text
+    const fn = document.getElementById('doc-filename');
+    if (fn) fn.textContent = `instabase-company-overview.${state.fileType}`;
+    // Swap outline
+    const oldOutline = document.querySelector('.doc-outline');
+    if (oldOutline) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = buildOutline();
+      oldOutline.replaceWith(tmp.firstElementChild);
+    }
+    // Swap main doc
+    const oldMain = document.getElementById('doc-main');
+    if (oldMain) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = buildDocument();
+      oldMain.replaceWith(tmp.firstElementChild);
+    }
+    // Re-wire outline item clicks + toggle buttons
+    document.querySelectorAll('.outline-item, .slide-thumb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.id;
+        const el = document.getElementById('section-' + id) || document.getElementById('slide-' + id);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.outline-item, .slide-thumb-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+    });
+    document.getElementById('outline-close-btn')?.addEventListener('click', () => {
+      document.querySelector('.doc-outline')?.classList.add('doc-outline--collapsed');
+      document.getElementById('doc-main')?.classList.add('doc-main--show-toggle');
+    });
+    document.getElementById('outline-toggle-btn')?.addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelector('.doc-outline')?.classList.remove('doc-outline--collapsed');
+      document.getElementById('doc-main')?.classList.remove('doc-main--show-toggle');
+    });
+    document.getElementById('chat-toggle-btn')?.addEventListener('click', () => {
+      document.querySelector('.doc-layout')?.classList.remove('doc-layout--no-chat');
+    });
+    if (state.fileType === 'document') initTableSelection();
+  });
+
   document.getElementById('chat-close-btn')?.addEventListener('click', () => {
     document.querySelector('.doc-layout')?.classList.add('doc-layout--no-chat');
   });
