@@ -2544,8 +2544,11 @@ function openVersionPreview(verId) {
     document.getElementById('vp-sidebar')?.remove();
   });
   document.getElementById('vp-revert-btn')?.addEventListener('click', () => {
+    const ver = state.versions.find(v => v.id === state.versionPreview);
     closeVersionPreview();
-    // (Revert logic can be added here)
+    if (ver) {
+      saveVersion(`Reverted to V${ver.num}`);
+    }
   });
   // Sidebar item → scroll to section in canvas
   overlay.querySelectorAll('.ver-preview__outline-item').forEach((item, i) => {
@@ -3184,6 +3187,21 @@ function attachVersionDropdownListeners() {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         openVersionPreview(btn.dataset.verView);
+      });
+    });
+
+    // Revert icon → add new version entry "Reverted to Vx"
+    dd.querySelectorAll('[data-ver-revert]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const verId = btn.dataset.verRevert;
+        const ver = state.versions.find(v => v.id === verId);
+        if (!ver) return;
+        state.versionDropdownOpen = false;
+        saveVersion(`Reverted to V${ver.num}`);
+        state.versionDropdownOpen = true;
+        refreshVersionBtn();
+        attachVersionDropdownListeners();
       });
     });
   }
