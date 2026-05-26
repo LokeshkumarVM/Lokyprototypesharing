@@ -888,6 +888,55 @@ body {
 .composer__icon-btn--pick-active { background: var(--color-blue-5); color: var(--color-primary); }
 .composer__icon-btn--pick-active:hover { background: var(--color-blue-10); color: var(--color-primary); }
 
+/* ── Composer + add menu ─────────────────────────────── */
+.composer-add-wrap { position: relative; display: inline-flex; }
+.composer-add-menu {
+  position: absolute;
+  bottom: calc(100% + 6px); left: 0;
+  background: #fff;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-small);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 50;
+  display: none;
+}
+.composer-add-menu.open { display: block; }
+.composer-add-menu__item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px; color: var(--color-text);
+  cursor: pointer; transition: background 0.1s;
+  user-select: none;
+}
+.composer-add-menu__item:hover { background: var(--color-gray-0); }
+.composer-add-menu__item svg { color: var(--color-gray-50); flex-shrink: 0; }
+/* Attachment chips row */
+.composer-attachments {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 10px 0;
+}
+.composer-attach-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px 3px 7px;
+  background: var(--color-gray-0);
+  border: 1px solid var(--color-gray-10);
+  border-radius: var(--radius-xsmall);
+  font-size: 12px; color: var(--color-text);
+  max-width: 160px;
+}
+.composer-attach-chip__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.composer-attach-chip__icon { color: var(--color-gray-40); flex-shrink: 0; }
+.composer-attach-chip__remove {
+  display: flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 3px;
+  color: var(--color-gray-40); cursor: pointer; flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+.composer-attach-chip__remove:hover { background: var(--color-gray-10); color: var(--color-text); }
+
 /* ── Rich tooltip ────────────────────────────────────── */
 .rich-tooltip-wrap { position: relative; display: inline-flex; }
 .rich-tooltip {
@@ -1575,6 +1624,7 @@ const state = {
   versionPreview: null, // { num, id, description }
   pendingConfirmation: null, // { msgId, targetId, editFn, response }
   fileType: 'document', // 'document' | 'slide'
+  attachments: [], // [{ id, name, type:'file'|'folder' }]
   versionsShown: 10,
   versions: [
     { id: 'ver-1', num: 1, description: 'Generated', time: new Date('2025-12-23T13:15:00') },
@@ -2411,14 +2461,46 @@ function buildComposerHTML() {
 
   const sendBtn = `<button class="composer__send${hasValue?' composer__send--ready':''}" id="send-btn">${ICON.arrowUp}</button>`;
 
+  const attachChips = (state.attachments || []).length ? `
+    <div class="composer-attachments" id="composer-attachments">
+      ${(state.attachments||[]).map(a => `
+        <div class="composer-attach-chip" data-attach-id="${a.id}">
+          <span class="composer-attach-chip__icon">
+            ${a.type === 'folder'
+              ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`
+              : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
+            }
+          </span>
+          <span class="composer-attach-chip__name">${a.name}</span>
+          <span class="composer-attach-chip__remove" data-remove-attach="${a.id}">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+        </div>`).join('')}
+    </div>` : '';
+
   return `<div class="composer" id="composer">
     ${chipRow}
+    ${attachChips}
     <div class="composer__input-row">
       <textarea id="chat-input" rows="1" placeholder="${placeholder}">${state.inputValue}</textarea>
     </div>
     <div class="composer__toolbar">
       <div class="composer__toolbar-left">
-        <button class="composer__icon-btn">${ICON.plus}</button>
+        <div class="composer-add-wrap">
+          <button class="composer__icon-btn" id="composer-add-btn">${ICON.plus}</button>
+          <div class="composer-add-menu" id="composer-add-menu">
+            <div class="composer-add-menu__item" id="add-file-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Add file
+            </div>
+            <div class="composer-add-menu__item" id="add-folder-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              Add folder
+            </div>
+          </div>
+        </div>
+        <input type="file" id="composer-file-input" style="display:none" multiple>
+        <input type="file" id="composer-folder-input" style="display:none" webkitdirectory multiple>
         <div class="rich-tooltip-wrap">
           <button class="composer__icon-btn${state.pickMode?' composer__icon-btn--pick-active':''}" id="pick-mode-btn">${ICON.cursorClick}</button>
           <div class="rich-tooltip">
@@ -2437,6 +2519,7 @@ function buildComposerHTML() {
     </div>
   </div>`;
 }
+
 
 function buildChat() {
   const msgs = state.messages.map(buildMessageHTML).join('');
@@ -3264,6 +3347,62 @@ function attachComposerListeners() {
     if (state.mode === 'view') return; // no picking in view mode
     setPickMode(!state.pickMode);
   });
+
+  // + button → toggle add menu
+  document.getElementById('composer-add-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const menu = document.getElementById('composer-add-menu');
+    menu?.classList.toggle('open');
+  });
+
+  // Add file
+  document.getElementById('add-file-item')?.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('composer-add-menu')?.classList.remove('open');
+    document.getElementById('composer-file-input')?.click();
+  });
+
+  // Add folder
+  document.getElementById('add-folder-item')?.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('composer-add-menu')?.classList.remove('open');
+    document.getElementById('composer-folder-input')?.click();
+  });
+
+  // File input → add chip
+  document.getElementById('composer-file-input')?.addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(f => {
+      state.attachments.push({ id: Date.now() + Math.random(), name: f.name, type: 'file' });
+    });
+    e.target.value = '';
+    rebuildComposer();
+  });
+
+  // Folder input → add chip (one chip for the folder)
+  document.getElementById('composer-folder-input')?.addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const folderName = files[0].webkitRelativePath?.split('/')[0] || 'Folder';
+    state.attachments.push({ id: Date.now() + Math.random(), name: folderName, type: 'folder' });
+    e.target.value = '';
+    rebuildComposer();
+  });
+
+  // Remove chip
+  document.querySelectorAll('[data-remove-attach]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = parseFloat(btn.dataset.removeAttach);
+      state.attachments = state.attachments.filter(a => a.id !== id);
+      rebuildComposer();
+    });
+  });
+
+  // Close menu on outside click
+  document.addEventListener('click', () => {
+    document.getElementById('composer-add-menu')?.classList.remove('open');
+  }, { once: false, capture: false });
 }
 
 /* ═══════════════════════════════════════════════════════
