@@ -3782,25 +3782,12 @@ function attachListeners() {
     document.getElementById('chat-input')?.focus();
   }, true); // capture phase so it fires before contenteditable
 
-  // Section body: track user editing for lock
+  // Section body: track user editing (no lock UI shown)
   document.querySelectorAll('.section-body').forEach(body => {
-    let lockTimer;
-    body.addEventListener('focus', () => {
-      const id = body.dataset.section;
-      if (!state.lockedSections[id]) lockSection(id, 'user');
-    });
-    body.addEventListener('blur', () => {
-      const id = body.dataset.section;
-      lockTimer = setTimeout(() => {
-        if (state.lockedSections[id] === 'user') unlockSection(id);
-      }, 800);
-    });
     body.addEventListener('input', () => {
-      clearTimeout(lockTimer);
       const id = body.dataset.section;
       const s = getSection(id);
       if (s) s.body = body.textContent;
-      if (!state.lockedSections[id]) lockSection(id, 'user');
     });
     body.addEventListener('paste', e => {
       e.preventDefault();
