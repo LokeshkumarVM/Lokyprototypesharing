@@ -480,6 +480,16 @@ body {
 .section-body-wrap:focus-within .section-edit-label {
   display: flex;
 }
+/* Always-on lock — someone else is editing */
+.section-body-wrap--other-editing {
+  border-color: var(--color-gray-20) !important;
+}
+.section-body-wrap--other-editing .section-edit-label {
+  display: flex;
+}
+.section-edit-label__avatar {
+  width: 14px; height: 14px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
 .lock-spinner {
   width: 10px; height: 10px;
   border: 1.5px solid transparent;
@@ -2481,23 +2491,23 @@ function buildSectionHTML(s, idx) {
   // AI lock banner stays at section level; user "Editing" moves to per-paragraph
   const bannerClass = ['section-lock-banner',
     lock === 'ai' ? 'visible-ai' : '',
-    lock === 'user' ? 'visible-user' : '',
   ].filter(Boolean).join(' ');
 
   const bannerContent = lock === 'ai'
     ? `<div class="lock-spinner"></div><span>SuperApp is applying changes…</span>`
-    : lock === 'user'
-    ? `${ICON.lock}&nbsp;<img class="section-lock-banner__avatar" src="avatars/anant.png" alt="Anant">&nbsp;<span>Editing</span>`
     : '';
 
   const ce = state.mode === 'edit' ? 'plaintext-only' : 'false';
   const imgHTML = s.sectionImage ? buildDocImage(s.sectionImage) : '';
 
-  // Editing label shown per-paragraph on :focus (only in edit mode)
-  const editLabel = `<div class="section-edit-label">${ICON.lock}&nbsp;Editing</div>`;
+  // Editing label — avatar shown when someone else is locking
+  const otherEditing = lock === 'user';
+  const editLabel = otherEditing
+    ? `<div class="section-edit-label"><img class="section-edit-label__avatar" src="avatars/anant.png" alt="Anant">&nbsp;${ICON.lock}&nbsp;Editing</div>`
+    : `<div class="section-edit-label">${ICON.lock}&nbsp;Editing</div>`;
 
   // Wrap section-body with a focus-context wrapper so :focus-within can show the label
-  const bodyHTML = (id) => `<div class="section-body-wrap">
+  const bodyHTML = (id) => `<div class="section-body-wrap${otherEditing ? ' section-body-wrap--other-editing' : ''}">
     ${editLabel}
     <div class="section-body" contenteditable="${ce}" data-section="${id}" spellcheck="false">${s.body}</div>
   </div>`;
