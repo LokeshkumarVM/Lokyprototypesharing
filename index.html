@@ -1095,6 +1095,29 @@ body {
 .doc-table td:first-child { font-weight: 500; }
 .doc-table td:nth-child(3) { color: var(--color-text-secondary); font-size: 12.5px; }
 
+/* Floating + add buttons */
+.tbl-add-btn {
+  position: fixed;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--color-gray-20);
+  color: var(--color-gray-50);
+  font-size: 15px; font-weight: 300; line-height: 1;
+  display: none;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 200;
+  transition: border-color 0.12s, color 0.12s, box-shadow 0.12s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+  user-select: none;
+}
+.tbl-add-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(90,82,250,0.22);
+}
+
 /* ── Share modal ─────────────────────────────────────── */
 .share-overlay {
   display: none; position: fixed; inset: 0; z-index: 10000;
@@ -3509,46 +3532,130 @@ function attachListeners() {
 /* ═══════════════════════════════════════════════════════
    Table row / column selection
 ═══════════════════════════════════════════════════════ */
-function initTableSelection() {
-  document.querySelectorAll('.doc-table').forEach(table => {
+/* ── Table + add buttons ──────────────────────────────── */
+const tblColAddBtn = document.createElement('button');
+tblColAddBtn.className = 'tbl-add-btn';
+tblColAddBtn.title = 'Add column';
+tblColAddBtn.innerHTML = '+';
+document.body.appendChild(tblColAddBtn);
 
-    function clearSel() {
-      table.querySelectorAll('.tbl-sel').forEach(el => el.classList.remove('tbl-sel'));
-    }
+const tblRowAddBtn = document.createElement('button');
+tblRowAddBtn.className = 'tbl-add-btn';
+tblRowAddBtn.title = 'Add row';
+tblRowAddBtn.innerHTML = '+';
+document.body.appendChild(tblRowAddBtn);
 
-    // Column header click → select column
-    table.querySelectorAll('thead th[data-col]').forEach(th => {
-      th.addEventListener('click', e => {
-        e.stopPropagation();
-        clearSel();
-        const col = th.dataset.col;
-        th.classList.add('tbl-sel');
-        table.querySelectorAll(`td[data-col="${col}"]`).forEach(td => td.classList.add('tbl-sel'));
-      });
-    });
+function hideTblAddBtns() {
+  tblColAddBtn.style.display = 'none';
+  tblRowAddBtn.style.display = 'none';
+}
 
-    // Row gutter click → select row
-    table.querySelectorAll('.tbl-gutter').forEach(gutter => {
-      gutter.addEventListener('click', e => {
-        e.stopPropagation();
-        clearSel();
-        const row = gutter.dataset.row;
-        gutter.classList.add('tbl-sel');
-        table.querySelectorAll(`td[data-row="${row}"]`).forEach(td => td.classList.add('tbl-sel'));
-      });
-    });
+function showColAddBtn(th, sectionId, colIndex) {
+  const r = th.getBoundingClientRect();
+  tblColAddBtn.style.display = 'flex';
+  tblColAddBtn.style.left = (r.right - 10) + 'px';
+  tblColAddBtn.style.top  = (r.top - 26) + 'px';
+  tblColAddBtn.onclick = e => { e.stopPropagation(); addTableCol(sectionId, colIndex); };
+}
 
-    // Data cell click → clear selection, let it focus for editing
-    table.querySelectorAll('td[data-col]').forEach(td => {
-      td.addEventListener('mousedown', () => clearSel());
-    });
+function showRowAddBtn(tr, sectionId, rowIndex) {
+  const r = tr.getBoundingClientRect();
+  tblRowAddBtn.style.display = 'flex';
+  tblRowAddBtn.style.left = (r.left - 26) + 'px';
+  tblRowAddBtn.style.top  = (r.bottom - 10) + 'px';
+  tblRowAddBtn.onclick = e => { e.stopPropagation(); addTableRow(sectionId, rowIndex); };
+}
 
-    // Escape → clear selection and blur
-    table.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { clearSel(); document.activeElement?.blur(); }
+function rebuildTableHTML(sec) {
+  const isEdit = state.mode !== 'view';
+  const thead = `<tr><th class="tbl-corner"></th>${sec.table.headers.map((h, ci) => `<th data-col="${ci}">${h}</th>`).join('')}</tr>`;
+  const tbody = sec.table.rows.map((r, ri) => `<tr data-row="${ri}"><td class="tbl-gutter" data-row="${ri}">${ri + 1}</td>${r.map((c, ci) => `<td data-row="${ri}" data-col="${ci}"${isEdit ? ' contenteditable="plaintext-only"' : ''}>${c}</td>`).join('')}</tr>`).join('');
+  return `<table class="doc-table" data-section="${sec.id}"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+}
+
+function rerenderTable(sectionId) {
+  const sec = state.sections.find(s => s.id === sectionId);
+  if (!sec) return;
+  const wrap = document.querySelector(`.doc-table[data-section="${sectionId}"]`)?.closest('.doc-table-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = rebuildTableHTML(sec);
+  hideTblAddBtns();
+  initSingleTable(wrap.querySelector('.doc-table'));
+}
+
+function addTableRow(sectionId, afterRowIndex) {
+  const sec = state.sections.find(s => s.id === sectionId);
+  if (!sec) return;
+  sec.table.rows.splice(afterRowIndex + 1, 0, new Array(sec.table.headers.length).fill(''));
+  rerenderTable(sectionId);
+}
+
+function addTableCol(sectionId, afterColIndex) {
+  const sec = state.sections.find(s => s.id === sectionId);
+  if (!sec) return;
+  sec.table.headers.splice(afterColIndex + 1, 0, 'New Column');
+  sec.table.rows.forEach(row => row.splice(afterColIndex + 1, 0, ''));
+  rerenderTable(sectionId);
+}
+
+function initSingleTable(table) {
+  const sectionId = table.dataset.section;
+
+  function clearSel() {
+    table.querySelectorAll('.tbl-sel').forEach(el => el.classList.remove('tbl-sel'));
+    hideTblAddBtns();
+  }
+
+  // Column header click → select column + show + button
+  table.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', e => {
+      e.stopPropagation();
+      clearSel();
+      const col = parseInt(th.dataset.col);
+      th.classList.add('tbl-sel');
+      table.querySelectorAll(`td[data-col="${col}"]`).forEach(td => td.classList.add('tbl-sel'));
+      showColAddBtn(th, sectionId, col);
     });
   });
+
+  // Row gutter click → select row + show + button
+  table.querySelectorAll('.tbl-gutter').forEach(gutter => {
+    gutter.addEventListener('click', e => {
+      e.stopPropagation();
+      clearSel();
+      const row = parseInt(gutter.dataset.row);
+      gutter.classList.add('tbl-sel');
+      table.querySelectorAll(`td[data-row="${row}"]`).forEach(td => td.classList.add('tbl-sel'));
+      const tr = table.querySelector(`tr[data-row="${row}"]`);
+      if (tr) showRowAddBtn(tr, sectionId, row);
+    });
+  });
+
+  // Data cell click → clear selection
+  table.querySelectorAll('td[data-col]').forEach(td => {
+    td.addEventListener('mousedown', () => clearSel());
+  });
+
+  // Escape → clear
+  table.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { clearSel(); document.activeElement?.blur(); }
+  });
 }
+
+function initTableSelection() {
+  document.querySelectorAll('.doc-table').forEach(initSingleTable);
+}
+
+// Hide + buttons when clicking outside any table
+document.addEventListener('click', e => {
+  if (!e.target.closest('.doc-table') && !e.target.closest('.tbl-add-btn')) {
+    document.querySelectorAll('.doc-table .tbl-sel').forEach(el => el.classList.remove('tbl-sel'));
+    hideTblAddBtns();
+  }
+});
+
+// Hide + buttons on scroll (they'd drift otherwise)
+document.querySelector('.doc-main')?.addEventListener('scroll', hideTblAddBtns, { passive: true });
 
 /* ═══════════════════════════════════════════════════════
    Init
