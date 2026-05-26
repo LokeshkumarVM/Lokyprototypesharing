@@ -2503,7 +2503,7 @@ function buildSectionHTML(s, idx) {
   // Editing label — avatar shown when someone else is locking
   const otherEditing = lock === 'user';
   const editLabel = otherEditing
-    ? `<div class="section-edit-label"><img class="section-edit-label__avatar" src="avatars/anant.png" alt="Anant">&nbsp;${ICON.lock}&nbsp;Editing</div>`
+    ? `<div class="section-edit-label"><img class="section-edit-label__avatar" src="avatars/xindi.png" alt="Xindi">&nbsp;${ICON.lock}&nbsp;Editing</div>`
     : `<div class="section-edit-label">${ICON.lock}&nbsp;Editing</div>`;
 
   // Wrap section-body with a focus-context wrapper so :focus-within can show the label
@@ -2947,7 +2947,7 @@ function refreshSectionStyle(id) {
       banner.innerHTML = `<div class="lock-spinner"></div><span>SuperApp is applying changes…</span>`;
     } else if (lock === 'user') {
       banner.className = 'section-lock-banner visible-user';
-      banner.innerHTML = `${ICON.lock}&nbsp;<img class="section-lock-banner__avatar" src="avatars/anant.png" alt="Anant">&nbsp;<span>Editing</span>`;
+      banner.innerHTML = `${ICON.lock}&nbsp;<img class="section-lock-banner__avatar" src="avatars/xindi.png" alt="Xindi">&nbsp;<span>Editing</span>`;
     } else {
       banner.className = 'section-lock-banner';
       banner.innerHTML = '';
