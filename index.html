@@ -440,6 +440,12 @@ body {
 .section-lock-banner.visible-ai {
   display: flex; background: var(--color-blue-5); color: var(--color-primary);
 }
+.section-lock-banner.visible-user {
+  display: flex; background: transparent; color: var(--color-text-secondary);
+}
+.section-lock-banner__avatar {
+  width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
 
 /* Per-paragraph editing indicator — gray outline + label badge on the border */
 .section-body-wrap {
@@ -1728,7 +1734,7 @@ const state = {
   pickMode: false,        // true = clicking a section sets it as composer context
   selectedId: null,       // null = whole doc
   selectedElementLabel: null, // label of the specific picked element
-  lockedSections: {},     // { id: 'ai' | 'user' }
+  lockedSections: { 'leadership': 'user' },     // { id: 'ai' | 'user' }
   ctxDropdownOpen: false,
   selectedModel: 'superagent-auto',
   modelDropdownOpen: false,
@@ -2475,10 +2481,13 @@ function buildSectionHTML(s, idx) {
   // AI lock banner stays at section level; user "Editing" moves to per-paragraph
   const bannerClass = ['section-lock-banner',
     lock === 'ai' ? 'visible-ai' : '',
+    lock === 'user' ? 'visible-user' : '',
   ].filter(Boolean).join(' ');
 
   const bannerContent = lock === 'ai'
     ? `<div class="lock-spinner"></div><span>SuperApp is applying changes…</span>`
+    : lock === 'user'
+    ? `${ICON.lock}&nbsp;<img class="section-lock-banner__avatar" src="avatars/anant.png" alt="Anant">&nbsp;<span>Editing</span>`
     : '';
 
   const ce = state.mode === 'edit' ? 'plaintext-only' : 'false';
@@ -2928,7 +2937,7 @@ function refreshSectionStyle(id) {
       banner.innerHTML = `<div class="lock-spinner"></div><span>SuperApp is applying changes…</span>`;
     } else if (lock === 'user') {
       banner.className = 'section-lock-banner visible-user';
-      banner.innerHTML = `${ICON.lock}&nbsp;<span>Editing</span>`;
+      banner.innerHTML = `${ICON.lock}&nbsp;<img class="section-lock-banner__avatar" src="avatars/anant.png" alt="Anant">&nbsp;<span>Editing</span>`;
     } else {
       banner.className = 'section-lock-banner';
       banner.innerHTML = '';
