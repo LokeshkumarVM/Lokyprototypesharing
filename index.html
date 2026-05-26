@@ -1559,6 +1559,80 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-gray-10); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-gray-20); }
+
+/* ── Help button & panel ─────────────────────────────── */
+.help-fab {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--color-gray-90);
+  color: #fff;
+  border: none; cursor: pointer;
+  font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  z-index: 300;
+  transition: background 0.15s, transform 0.15s;
+  user-select: none;
+}
+.help-fab:hover { background: #000; transform: scale(1.07); }
+
+.help-panel-overlay {
+  position: fixed; inset: 0;
+  z-index: 299;
+  display: none;
+}
+.help-panel-overlay.open { display: block; }
+
+.help-panel {
+  position: fixed; bottom: 70px; right: 24px;
+  width: 480px;
+  background: #18181b;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+  z-index: 300;
+  overflow: hidden;
+  transform: translateY(8px); opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  pointer-events: none;
+}
+.help-panel.open {
+  transform: translateY(0); opacity: 1;
+  pointer-events: auto;
+}
+.help-panel__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.help-panel__title {
+  font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 0.01em;
+}
+.help-panel__close {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.5);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, color 0.1s;
+}
+.help-panel__close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.help-panel__body { padding: 4px 0 8px; max-height: 420px; overflow-y: auto; }
+.help-item {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.help-item:last-child { border-bottom: none; }
+.help-item__title {
+  font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 5px;
+  display: flex; gap: 8px;
+}
+.help-item__num {
+  color: rgba(255,255,255,0.35); font-weight: 500; flex-shrink: 0;
+}
+.help-item__body { font-size: 12.5px; color: rgba(255,255,255,0.55); line-height: 1.6; padding-left: 20px; }
+.help-item__prompt {
+  color: rgba(255,255,255,0.85); font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -4035,6 +4109,54 @@ document.querySelector('.doc-main')?.addEventListener('scroll', hideTblAddBtns, 
 buildApp();
 attachListeners();
 initTableSelection();
+</script>
+
+<!-- ── Help FAB ─────────────────────────────────────── -->
+<button class="help-fab" id="help-fab">?</button>
+<div class="help-panel-overlay" id="help-panel-overlay"></div>
+<div class="help-panel" id="help-panel">
+  <div class="help-panel__header">
+    <span class="help-panel__title">How to use this prototype</span>
+    <button class="help-panel__close" id="help-panel-close">
+      <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="help-panel__body">
+    <div class="help-item">
+      <div class="help-item__title"><span class="help-item__num">1.</span> Asking a clarifying question about the document</div>
+      <div class="help-item__body">Try prompt: <span class="help-item__prompt">what is this document about</span><br>Output: you should see a response without any edit.</div>
+    </div>
+    <div class="help-item">
+      <div class="help-item__title"><span class="help-item__num">2.</span> Some big changes at document level</div>
+      <div class="help-item__body">Try prompt: <span class="help-item__prompt">rewrite the document for legal filing</span><br>Output: see doc level changes and how it happens, with loading interaction.</div>
+    </div>
+    <div class="help-item">
+      <div class="help-item__title"><span class="help-item__num">3.</span> Asking SuperApp to edit at document level</div>
+      <div class="help-item__body">Try prompt: <span class="help-item__prompt">make the intro section concise</span><br>Output: see the change happening in the document.</div>
+    </div>
+    <div class="help-item">
+      <div class="help-item__title"><span class="help-item__num">4.</span> Editing a locked section</div>
+      <div class="help-item__body">Assume someone clicked on the "leadership" section and it is locked. Ask for a change in that section.<br>Try prompt: <span class="help-item__prompt">update the leadership team</span><br>Output: SuperApp replies with an Edit queued tag.</div>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('help-fab')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = document.getElementById('help-panel');
+    const overlay = document.getElementById('help-panel-overlay');
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    overlay.classList.toggle('open', !isOpen);
+  });
+  document.getElementById('help-panel-close')?.addEventListener('click', () => {
+    document.getElementById('help-panel')?.classList.remove('open');
+    document.getElementById('help-panel-overlay')?.classList.remove('open');
+  });
+  document.getElementById('help-panel-overlay')?.addEventListener('click', () => {
+    document.getElementById('help-panel')?.classList.remove('open');
+    document.getElementById('help-panel-overlay')?.classList.remove('open');
+  });
 </script>
 </body>
 </html>
