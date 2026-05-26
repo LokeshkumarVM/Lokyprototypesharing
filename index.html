@@ -785,6 +785,28 @@ body {
 }
 .msg-self__context-chip:hover { background: var(--color-gray-0); border-color: var(--color-gray-20); color: var(--color-text); }
 .msg-self__context-chip svg { flex-shrink: 0; }
+/* Image thumbnails in chat */
+.msg-images {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: flex-end; margin-bottom: 6px;
+}
+.msg-img-thumb {
+  width: 160px; height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-gray-0);
+  flex-shrink: 0; position: relative;
+}
+.msg-img-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.msg-img-thumb__name {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.45);
+  color: #fff; font-size: 10px; padding: 3px 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .msg-self__bubble-row { display: flex; justify-content: flex-end; }
 .bubble-self {
   background: var(--color-blue-5);
@@ -1973,11 +1995,20 @@ function buildMessageHTML(msg) {
       const badgeHTML = msg.badge === 'queued'
         ? `<span class="msg-badge msg-badge--queued"><span class="badge-default">Edit queued</span><span class="badge-hover">Delete request</span></span>`
         : '';
+      const imagesHTML = (msg.images || []).length
+        ? `<div class="msg-images">${(msg.images).map(img =>
+            `<div class="msg-img-thumb">
+              <img src="${img.imageUrl}" alt="${img.name}">
+              <div class="msg-img-thumb__name">${img.name}</div>
+            </div>`).join('')}
+          </div>`
+        : '';
       return `<div class="msg--self" data-msg-id="${msg.id}">
         <div class="msg-time-right">${badgeHTML}${msg.time}</div>
         <div class="msg-self__chips">
           <span class="msg-self__context-chip" data-section-id="${msg.sectionId || ''}">${chipIcon}&nbsp;${ctxLabel}</span>
         </div>
+        ${imagesHTML}
         <div class="msg-self__bubble-row">
           <div class="bubble-self">${msg.text}</div>
         </div>
@@ -3153,6 +3184,10 @@ function sendMessage() {
   // Unhandled edit-intent: no specific handler found
   const isUnhandledEdit = !editFn && !requiresConfirmation && /\b(update|change|rewrite|revise|add|remove|delete|fix|improve|rename|replace)\b/i.test(text);
 
+  // Capture image attachments before clearing
+  const imageAttachments = (state.attachments || []).filter(a => a.isImage);
+  state.attachments = [];
+
   // Add user message (no badge — badge goes on the AI response instead)
   addMessageToChat({
     id: nextId(), type: 'user',
@@ -3160,6 +3195,7 @@ function sendMessage() {
     sectionLabel: ctxId ? sectionDisplayName(ctxId) : null,
     sectionId: ctxId || null,
     text,
+    images: imageAttachments,
     time: formatTime(new Date()),
   });
 
@@ -3369,11 +3405,18 @@ function attachComposerListeners() {
     document.getElementById('composer-folder-input')?.click();
   });
 
-  // File input → add chip
+  // File input → add chip (detect images → store preview URL)
   document.getElementById('composer-file-input')?.addEventListener('change', e => {
     const files = Array.from(e.target.files || []);
     files.forEach(f => {
-      state.attachments.push({ id: Date.now() + Math.random(), name: f.name, type: 'file' });
+      const isImg = f.type.startsWith('image/');
+      state.attachments.push({
+        id: Date.now() + Math.random(),
+        name: f.name,
+        type: 'file',
+        isImage: isImg,
+        imageUrl: isImg ? URL.createObjectURL(f) : null,
+      });
     });
     e.target.value = '';
     rebuildComposer();
